@@ -1,0 +1,26 @@
+1.
+Filter: {"languages.0": "English", "awards.wins": 2}
+Project: {"title": 1, "writers": 1, "directors": 1, "year": 1, "_id": 0}
+Sort:  {"year": -1}
+
+2.
+db.users.find( 
+{ "email": { $regex: /.com/ } }, { "name": 1, "email": 1, "_id": 0})
+
+3.
+db.movies.aggregate([ 
+{"$match": {"year": {$gt:1950}}}, 
+{"$group": {_id: "rated", avg_runtime: {$avg: "$runtime"}}},
+{"$project": {rated: 1, avg_runtime: 1}}])
+
+4.
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released > 1970 OR m.title CONTAINS "Love"
+RETURN m.title AS Filmcím, p.name AS Szereplő
+ORDER BY Filmcím DESC
+
+5.
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.born > 1980
+WITH p, count(m) AS NumMoviesActedIn
+RETURN p.name AS Actor, p.born AS BirthYear, NumMoviesActedIn
