@@ -10,8 +10,8 @@ db.users.find(
 3.
 db.movies.aggregate([ 
 {"$match": {"year": {$gt:1950}}}, 
-{"$group": {_id: "rated", avg_runtime: {$avg: "$runtime"}}},
-{"$project": {rated: 1, avg_runtime: 1}}])
+{"$group": {_id: "$rated", avg_runtime: {$avg: "$runtime"}}},
+])
 
 4.
 MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
