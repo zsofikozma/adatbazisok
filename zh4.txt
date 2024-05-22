@@ -1,0 +1,111 @@
+1. Feladat
+Jelenítsük meg minden egyes szoba esetén, hogy hányszor foglalták le!
+Csak a szoba azonosítója és a foglalások darabszáma jelenjen meg
+Azok a szobák is jelenjenek meg, ahol nem történt foglalás
+
+SELECT sz.SZOBA_ID AS 'Szoba azonosító',
+       COUNT(f.SZOBA_FK) AS 'DB'
+FROM Szoba sz 
+    LEFT JOIN Foglalas f ON sz.SZOBA_ID = f.SZOBA_FK
+GROUP BY sz.SZOBA_ID
+
+
+2. Feladat
+Listázzuk azon szálláshelyek azonosítóját és nevét, amelyek a saját helyükön (HELY) a legtöbb csillaggal rendelkeznek!
+
+SELECT szh.SZALLAS_ID, 
+       szh.SZALLAS_NEV
+FROM Szallashely szh
+    JOIN (SELECT HELY, MAX(CSILLAGOK_SZAMA) AS legtobbcs
+          FROM Szallashely
+          GROUP BY HELY) 
+          AS legtobb ON szh.HELY = legtobb.HELY AND szh.CSILLAGOK_SZAMA = legtobb.legtobbcs
+
+
+3. Feladat
+Készítsen lekérdezést, amely sorszámozza a vendégeket a foglalások száma alapján
+A sorszám mellett jelenjen meg a vendég azonosítója, neve és a foglalások száma is
+A legtöbbet foglaló vendég kapja az egyes sorszámot
+Holtverseny esetén a számozás annyit ugorjon, ahány egyforma érték van
+
+SELECT v.USERNEV,
+       v.NEV,
+       COUNT(*) AS 'DB',
+       RANK() OVER(ORDER BY COUNT(*) DESC) AS 'Sorszám'
+FROM Vendeg v 
+    JOIN Foglalas f ON v.USERNEV = f.UGYFEL_FK
+GROUP BY v.USERNEV, v.NEV
+
+
+4. Feladat
+Készítsen lekérdezést, amely megjeleníti, hogy szálláshelyenként, azon belül a pótágyak száma szerint hány főre foglaltak összesen (felnőtt + gyermek)!
+Jelenjenek meg a részösszegek és a végösszeg is!
+
+SELECT IIF((szh.SZALLAS_NEV) IS NULL, 'Végösszeg', CAST(szh.SZALLAS_NEV AS NVARCHAR(50))) AS 'Szállás neve',
+    CASE GROUPING_ID(szh.SZALLAS_NEV, sz.POTAGY)
+        WHEN 0 THEN CAST(sz.POTAGY AS NVARCHAR(10))
+        WHEN 1 THEN 'Részösszeg'
+        WHEN 3 THEN 'Végösszeg'
+    END as 'Pótágyak száma',
+    SUM(f.FELNOTT_SZAM + f.GYERMEK_SZAM) AS 'Emberek száma'
+FROM Szallashely szh
+    JOIN Szoba sz ON szh.SZALLAS_ID = sz.SZALLAS_FK
+    JOIN Foglalas f ON f.SZOBA_FK = sz.SZOBA_ID
+GROUP BY ROLLUP(szh.SZALLAS_NEV, sz.POTAGY)
+
+
+5. Feladat
+Készítsünk ideiglenes táblát #MASKED_GUEST néven, ahol 
+a tábla felépítése megegyezik a vendég tábláéval, DE
+a vendégek nevének csak az első 2, és az utolsó 3 karaktere jelenjen meg, közötte X-ek legyenek!
+
+CREATE TABLE #MASKED_GUEST(
+	[USERNEV] [nvarchar](20) NOT NULL,
+	[NEV] [nvarchar](50) MASKED WITH (FUNCTION = 'PARTIAL(2,"XXX",3)'),
+	[EMAIL] [nvarchar](60) NOT NULL,
+	[SZAML_CIM] [nvarchar](100) NULL,
+	[SZUL_DAT] [date] NULL
+    ) ON [PRIMARY]
+
+
+6. Feladat
+Oldja meg REDIS-ben a következő feladatokat:
+hozzon létre egy string kulcsot, amely egy könyvtár nevét tartalmazza
+hozzon létre egy hash kulcsot, amely egy könyv legalább 3 adatát tartalmazza
+hozzon létre egy set kulcsot, amely a könyvtárban lévő könyvek műfajait tartalmazza (legalább 3)
+hozzon létre egy list kulcsot, amely a kikölcsönzött könyvek címeit tartalmazza (legalább 3)
+hozzon létre egy sorted set kulcsot, amely az adott könyvek címeit és a könyv kölcsönzéseinek számát tartalmazza (legalább 3)
+
+SET konyvtar "Fővárosi Szabó Ervin Könyvtár"
+HSET konyv:1 cime "Adatbázisok kalandjai" iroja "Molnár Géza" megjelenesi_ev "2024"
+SADD mufajok "Akció" "Misztikus" "Romantikus"
+RPUSH kolcsonzott "Biblia" "Bambi" "A kis herceg"
+ZADD kolcsonzesi_szam 9 "Biblia" 2 "Bambi" 6 "A kis herceg"
+
+
+7. Feladat 
+Cassandra CQL Shellben hozza létre a következő táblát:
+STUDENT(ID, Nev, Teljesitett_felevek, Eredmenyek, Nyelvtudas)
+Az ID legyen az elsődleges kulcs
+A Teljesitett félévek legyen LIST, tartalma egész számok, pl: 1, 2, 3
+Az Eredmenyek legyen MAP, tartalma, hogy melyik félévben mennyi volt az átlag, pl: 1: 3,00, 2: 4.55, 3: 4,10
+A Nyelvtudas legyen SET, tartalma a nyelvek megnevezése
+Vigyen fel legalább 2 rekordot!
+
+CREATE TABLE STUDENT(ID int, Nev varchar, Teljesitett_felevek LIST<INT>, Eredmenyek MAP<INT, FLOAT>, Nyelvtudas SET<TEXT>, primary key(ID));
+INSERT INTO STUDENT (ID, Nev, Teljesitett_felevek, Eredmenyek, Nyelvtudas)
+VALUES
+(1, 'Kovács Dorka', [1, 2], {1: 5.00, 2: 4.69}, {'spanyol'});
+INSERT INTO STUDENT (ID, Nev, Teljesitett_felevek, Eredmenyek, Nyelvtudas)
+VALUES
+(2, 'Mikulás Marcell', [1, 2, 3], {1: 3.00, 2: 4.55, 3: 4.10}, {'angol', 'nemet', 'orosz'});
+
+
+8. Feladat
+A Neo4j Sandbox-ban vagy a Desktopban jelenítsük meg azon személyeket, akik egy filmben szerepeltek Tom Hanks-sel.
+Egy szereplő neve csak egyszer jelenjen meg
+Tom Hanks ne legyen benne a listában
+
+MATCH (p:Person {name: "Tom Hanks"})-[:ACTED_IN]->(movie:Movie)<-[:ACTED_IN]-(p2:Person)
+WHERE p2.name <> "Tom Hanks"
+RETURN DISTINCT p2.name
